@@ -346,7 +346,7 @@ echo "#!/bin/bash
 # It is ran as root.
 
 # Get current date from debian time server
-#ntpdate 0.debian.pool.ntp.org
+ntpdate 0.debian.pool.ntp.org
 
 echo 'Starting firstboot.sh' >> /dev/kmsg
 
