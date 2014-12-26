@@ -69,9 +69,12 @@ _ENCODING=""
 # Apply-Functions
 
 get_apt_source_mirror_url () {
-
-	HTTP="http://"
-	echo -n "http://localhost:3142/${_APT_SOURCE#${HTTP}}"
+	if [ "x${_USE_CACHE}" = "xno" ]; then
+		echo "${_APT_SOURCE}"
+	else
+		HTTP="http://"
+		echo -n "http://localhost:3142/${_APT_SOURCE#${HTTP}}"
+	fi
 }
 
 get_apt_sources_first_stage () {

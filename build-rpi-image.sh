@@ -2,7 +2,7 @@
 #set -x
 
 # Usage:
-#	./build_pi_image.sh [--profil default] [--device /dev/mmcblk0]
+#	./build_pi_image.sh [--profil default] [--device /dev/mmcblk0] [--nocache]
 #
 # 2014-08
 # Rewriting and add settings/profiles support by Bernd Naumann
@@ -95,8 +95,24 @@ if [ ${EUID} -ne 0 ]; then
 fi
 
 
+set +e
+# Process given command line arguments and options
+DEFINE_string 'profile' 'default' 'name of profile to apply' p
+DEFINE_string 'device' '' 'path the block-device' d
+DEFINE_boolean 'nocache' false 'do not use apt-cacher-ng'
+
+FLAGS "$@" || exit $?
+
+eval set -- "${FLAGS_ARGV}"
+
+PROFILE="${FLAGS_profile}"
+DEVICE="${FLAGS_device}"
+[ ${FLAGS_nocache} -eq ${FLAGS_TRUE} ] && _USE_CACHE=no
+
+
 # TEST: Dependencies
-DEPENDENCIES="binfmt-support qemu qemu-user-static debootstrap kpartx lvm2 dosfstools apt-cacher-ng"
+DEPENDENCIES="binfmt-support qemu qemu-user-static debootstrap kpartx lvm2 dosfstools"
+[ "x${_USE_CACHE}" = "xno" ] || DEPENDENCIES="${DEPENDENCIES} apt-cacher-ng"
 EXIT=0
 for TOOL in $DEPENDENCIES; do
 	dpkg -l | grep "$TOOL" | grep "^ii" > /dev/null
@@ -110,19 +126,6 @@ if [ ${EXIT} -eq 1 ]; then
 	[ "${VERBOSE}" ]		&& echo "Abort. Error-Code: ${ERR_MISSING_DEPENDENCIES}"
 	exit ${ERR_MISSING_DEPENDENCIES}
 fi
-
-
-set +e
-# Process given command line arguments and options
-DEFINE_string 'profile' 'default' 'name of profile to apply' p
-DEFINE_string 'device' '' 'path the block-device' d
-
-FLAGS "$@" || exit $?
-
-eval set -- "${FLAGS_ARGV}"
-
-PROFILE="${FLAGS_profile}"
-DEVICE="${FLAGS_device}"
 
 #######################################
 
