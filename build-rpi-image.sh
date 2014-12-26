@@ -264,6 +264,9 @@ else
 	
 fi
 
+# Give some time to system to refresh
+sleep 3
+
 mkfs.vfat ${bootp}
 mkfs.ext4 ${rootp}
 
