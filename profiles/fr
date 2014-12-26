@@ -1,0 +1,15 @@
+#!/bin/bash
+
+_DEB_RELEASE="testing"					# stable | testing | unstable | jessie | wheezy | squeeze, ...
+_APT_SOURCE="${_APT_SOURCE_RASPBIAN}"
+
+_HOSTNAME="raspberry-pi"
+_NET_CONFIG="dhcp"
+
+_USER_NAME="root"
+_USER_PASS="raspberry"
+
+_KEYMAP="fr"
+_TIMEZONE="Europe/Paris"
+_LOCALES="fr_FR"
+_ENCODING="UTF-8"
