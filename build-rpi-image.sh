@@ -418,7 +418,6 @@ rm -f /debconf.set
 
 
 apt-get update
-apt-get install --reinstall language-pack-en
 
 apt-get -y install aptitude gpgv git-core binutils ca-certificates wget curl # TODO FIXME
 
