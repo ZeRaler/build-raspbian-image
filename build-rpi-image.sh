@@ -472,10 +472,10 @@ LANG=C chroot ${rootfs} /third-stage
 # Execute firstboot.sh only on first boot
 echo "#!/bin/sh -e
 if [ ! -e /root/firstboot_done ]; then
+	touch /root/firstboot_done
 	if [ -e /root/firstboot.sh ]; then
 		/root/firstboot.sh
 	fi
-	touch /root/firstboot_done
 fi
 
 exit 0
