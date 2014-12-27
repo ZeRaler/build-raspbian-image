@@ -359,8 +359,8 @@ echo '  Collecting entropy ...' >> /dev/kmsg
 # Drain entropy pool to get rid of stored entropy after boot.
 dd if=/dev/urandom of=/dev/null bs=1024 count=10 2>/dev/null
 
-while entropy=\$(cat /proc/sys/kernel/random/entropy_avail) (( \$entropy < 200 ))
-	do sleep 1
+while entropy=\$(cat /proc/sys/kernel/random/entropy_avail); [ \$entropy -lt 200 ]
+    do sleep 1
 done
 
 rm -f /etc/ssh/ssh_host_*
