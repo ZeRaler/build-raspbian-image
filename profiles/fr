@@ -13,3 +13,5 @@ _KEYMAP="fr"
 _TIMEZONE="Europe/Paris"
 _LOCALES="fr_FR"
 _ENCODING="UTF-8"
+
+_APT_PACKAGES="${_APT_PACKAGES} wpasupplicant wireless-tools"
