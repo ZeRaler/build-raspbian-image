@@ -441,7 +441,7 @@ rm -f /etc/ssh/ssh_host_*
 
 
 apt-get -y install lua5.1 triggerhappy
-apt-get -y install dmsetup libdevmapper1.02.1 libparted0debian1 parted
+apt-get -y install dmsetup parted
 
 wget http://archive.raspberrypi.org/debian/pool/main/r/raspi-config/raspi-config_20131216-1_all.deb
 dpkg -i raspi-config_20131216-1_all.deb
