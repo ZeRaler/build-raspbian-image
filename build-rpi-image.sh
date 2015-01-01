@@ -2,7 +2,7 @@
 #set -x
 
 # Usage:
-#	./build_pi_image.sh [--profil default] [--device /dev/mmcblk0] [--nocache]
+#	./build_pi_image.sh [--profil default] [--device /dev/mmcblk0] [--nocache] [--reduceimage]
 #
 # 2014-08
 # Rewriting and add settings/profiles support by Bernd Naumann
@@ -100,6 +100,7 @@ set +e
 DEFINE_string 'profile' 'default' 'name of profile to apply' p
 DEFINE_string 'device' '' 'path the block-device' d
 DEFINE_boolean 'nocache' false 'do not use apt-cacher-ng'
+DEFINE_boolean  'reduceimage' false 'reduce generated image' r
 
 FLAGS "$@" || exit $?
 
@@ -108,7 +109,13 @@ eval set -- "${FLAGS_ARGV}"
 PROFILE="${FLAGS_profile}"
 DEVICE="${FLAGS_device}"
 [ ${FLAGS_nocache} -eq ${FLAGS_TRUE} ] && _USE_CACHE=no
+[ ${FLAGS_reduceimage} -eq ${FLAGS_TRUE} ] && REDUCE_IMAGE_SIZE=yes
 
+if [ -n "${DEVICE}" -a "x${REDUCE_IMAGE_SIZE}" = "xyes" ]; then
+	[ "${DEBUG}" ]          && echo "Error: reduceimage option is incompatible with writing into device"
+	[ "${VERBOSE}" ]		&& echo "Abort. Error-Code: ${ERR_BAD_ARGUMENT}"
+	exit ${ERR_BAD_ARGUMENT}
+fi
 
 # TEST: Dependencies
 DEPENDENCIES="binfmt-support qemu qemu-user-static debootstrap kpartx lvm2 dosfstools"
@@ -179,6 +186,8 @@ fi
 . "./settings.sh"
 # Overwrite variables with profile settings
 . "./profiles/${PROFILE}"
+# Load some tools
+. "./tools.sh"
 
 #######################################
 ## Prepare bootstrap env
@@ -246,9 +255,9 @@ if [ "${IMAGE_PATH}" != "" ]; then
 	
 	losetup -d ${DEVICE}
 	DEVICE=`kpartx -va ${IMAGE_PATH} | sed -E 's/.*(loop[0-9])p.*/\1/g' | head -1`
-	DEVICE="/dev/mapper/${DEVICE}"
-	bootp=${DEVICE}p1
-	rootp=${DEVICE}p2
+	bootp="/dev/mapper/${DEVICE}p1"
+	rootp="/dev/mapper/${DEVICE}p2"
+	DEVICE="/dev/${DEVICE}"
 	
 else
 	
@@ -529,13 +538,16 @@ umount -l ${rootfs}/sys
 umount -l ${rootfs}/proc
 
 umount -l ${rootfs}
-umount -l ${rootp}
 
 sync
 sleep 5
 
 if [ "${IMAGE_PATH}" != "" ]; then
-	kpartx -vd ${IMAGE_PATH}
+    if [ "x${REDUCE_IMAGE_SIZE}" = "xyes" ]; then
+        reduce_image "${IMAGE_PATH}"
+    fi
+
+    kpartx -vds ${IMAGE_PATH}
 	[ "${VERBOSE}" ]		&& echo "Info: Created image ${IMAGE_PATH}."
 else
 	[ "${VERBOSE}" ]		&& echo "Info: Wrote to ${DEVICE}."
