@@ -2,7 +2,7 @@
 #set -x
 
 # Usage:
-#	./build_pi_image.sh [--profil default] [--device /dev/mmcblk0] [--nocache] [--reduceimage]
+#	./build_pi_image.sh [--profil default] [--device /dev/mmcblk0] [--nocache] [--reduceimage] [--dev]
 #
 # 2014-08
 # Rewriting and add settings/profiles support by Bernd Naumann
@@ -101,6 +101,7 @@ DEFINE_string 'profile' 'default' 'name of profile to apply' p
 DEFINE_string 'device' '' 'path the block-device' d
 DEFINE_boolean 'nocache' false 'do not use apt-cacher-ng'
 DEFINE_boolean  'reduceimage' false 'reduce generated image' r
+DEFINE_boolean  'dev' false 'create a development environnment'
 
 FLAGS "$@" || exit $?
 
@@ -110,9 +111,22 @@ PROFILE="${FLAGS_profile}"
 DEVICE="${FLAGS_device}"
 [ ${FLAGS_nocache} -eq ${FLAGS_TRUE} ] && _USE_CACHE=no
 [ ${FLAGS_reduceimage} -eq ${FLAGS_TRUE} ] && REDUCE_IMAGE_SIZE=yes
+[ ${FLAGS_dev} -eq ${FLAGS_TRUE} ] && DEVELOPMENT_BUILD=yes
 
 if [ -n "${DEVICE}" -a "x${REDUCE_IMAGE_SIZE}" = "xyes" ]; then
 	[ "${DEBUG}" ]          && echo "Error: reduceimage option is incompatible with writing into device"
+	[ "${VERBOSE}" ]		&& echo "Abort. Error-Code: ${ERR_BAD_ARGUMENT}"
+	exit ${ERR_BAD_ARGUMENT}
+fi
+
+if [ -n "${DEVICE}" -a "x${DEVELOPMENT_BUILD}" = "xyes" ]; then
+	[ "${DEBUG}" ]          && echo "Error :development build is incompatible with writing into device"
+	[ "${VERBOSE}" ]		&& echo "Abort. Error-Code: ${ERR_BAD_ARGUMENT}"
+	exit ${ERR_BAD_ARGUMENT}
+fi
+
+if [ "x${DEVELOPMENT_BUILD}" = "xyes" -a "x${REDUCE_IMAGE_SIZE}" = "xyes" ]; then
+	[ "${DEBUG}" ]          && echo "Error: reduceimage option is incompatible with build development environnment"
 	[ "${VERBOSE}" ]		&& echo "Abort. Error-Code: ${ERR_BAD_ARGUMENT}"
 	exit ${ERR_BAD_ARGUMENT}
 fi
@@ -157,6 +171,8 @@ fi
 [ "${VERBOSE}" ] &&
 	if [ "${DEVICE}" ]; then
 		echo "Info: Write on device ${DEVICE}"
+	elif [ "x${DEVELOPMENT_BUILD}" = "xyes" ]; then
+		echo "Build development environnment"
 	else
 		echo "Info: Write to disk image."
 	fi
@@ -214,27 +230,28 @@ BUILD_TIME="$(date +%Y%m%d-%H%M%S)"
 
 IMAGE_PATH=""
 
-# if no block device was given, create image
-if [ "${DEVICE}" = "" ]; then
+if [ ! "x${DEVELOPMENT_BUILD}" = "xyes" ]; then
+	# if no block device was given, create image
+	if [ "${DEVICE}" = "" ]; then
 
-	mkdir -p ${buildenv}
-	IMAGE_PATH="${buildenv}/images/${PROFILE}-${BUILD_TIME}.img"
-	dd if=/dev/zero of=${IMAGE_PATH} bs=1MB count=1800		# TODO: Decrease value or shrink at the end
-	DEVICE=$(losetup -f --show ${IMAGE_PATH})
+		mkdir -p ${buildenv}
+		IMAGE_PATH="${buildenv}/images/${PROFILE}-${BUILD_TIME}.img"
+		dd if=/dev/zero of=${IMAGE_PATH} bs=1MB count=1800		# TODO: Decrease value or shrink at the end
+		DEVICE=$(losetup -f --show ${IMAGE_PATH})
 	
-	[ ${VERBOSE} ] && echo "Image ${IMAGE_PATH} created and mounted as ${DEVICE}."
+		[ ${VERBOSE} ] && echo "Image ${IMAGE_PATH} created and mounted as ${DEVICE}."
 	
-else
-	# Erease MBR of device
-	dd if=/dev/zero of=${DEVICE} bs=512 count=1
+	else
+		# Erease MBR of device
+		dd if=/dev/zero of=${DEVICE} bs=512 count=1
 	
-	[ ${VERBOSE} ] && echo "Ereased block device ${DEVICE}."
+		[ ${VERBOSE} ] && echo "Ereased block device ${DEVICE}."
 	
-fi
+	fi
 
-# Create partions
-set +e
-fdisk ${DEVICE} << EOF
+	# Create partions
+	set +e
+	fdisk ${DEVICE} << EOF
 n
 p
 1
@@ -250,45 +267,46 @@ p
 w
 EOF
 
-# Find partions on block device or in image file
-if [ "${IMAGE_PATH}" != "" ]; then
+	# Find partions on block device or in image file
+	if [ "${IMAGE_PATH}" != "" ]; then
 	
-	losetup -d ${DEVICE}
-	DEVICE=`kpartx -va ${IMAGE_PATH} | sed -E 's/.*(loop[0-9])p.*/\1/g' | head -1`
-	bootp="/dev/mapper/${DEVICE}p1"
-	rootp="/dev/mapper/${DEVICE}p2"
-	DEVICE="/dev/${DEVICE}"
+		losetup -d ${DEVICE}
+		DEVICE=`kpartx -va ${IMAGE_PATH} | sed -E 's/.*(loop[0-9])p.*/\1/g' | head -1`
+		bootp="/dev/mapper/${DEVICE}p1"
+		rootp="/dev/mapper/${DEVICE}p2"
+		DEVICE="/dev/${DEVICE}"
 	
-else
-	
-	if ! [ -b ${DEVICE}1 ]; then
-		bootp=${DEVICE}p1
-		rootp=${DEVICE}p2
-		if ! [ -b ${bootp} ]; then
-			[ "${DEBUG}" ]		&& echo "Error: Can't find boot partition neither as ${DEVICE}1 nor as ${DEVICE}p1."
-			[ "${VERBOSE}" ]	&& echo "Abort. Error-Code: ${ERR_NO_BOOT_PARTITION_FOUND}"
-			exit ${ERR_NO_BOOT_PARTITION_FOUND}
-		fi
 	else
-		bootp=${DEVICE}1
-		rootp=${DEVICE}2
-	fi
 	
+		if ! [ -b ${DEVICE}1 ]; then
+			bootp=${DEVICE}p1
+			rootp=${DEVICE}p2
+			if ! [ -b ${bootp} ]; then
+				[ "${DEBUG}" ]		&& echo "Error: Can't find boot partition neither as ${DEVICE}1 nor as ${DEVICE}p1."
+				[ "${VERBOSE}" ]	&& echo "Abort. Error-Code: ${ERR_NO_BOOT_PARTITION_FOUND}"
+				exit ${ERR_NO_BOOT_PARTITION_FOUND}
+			fi
+		else
+			bootp=${DEVICE}1
+			rootp=${DEVICE}2
+		fi
+	
+	fi
+
+	# Give some time to system to refresh
+	sleep 3
+
+	mkfs.vfat ${bootp}
+	mkfs.ext4 ${rootp}
+
 fi
-
-# Give some time to system to refresh
-sleep 3
-
-mkfs.vfat ${bootp}
-mkfs.ext4 ${rootp}
-
 #######################################
 
 set -e
 
 mkdir -p ${rootfs}
 
-mount ${rootp} ${rootfs}
+[ ! "x${DEVELOPMENT_BUILD}" = "xyes" ] && mount ${rootp} ${rootfs}
 
 mkdir -p ${rootfs}/proc
 mkdir -p ${rootfs}/sys
@@ -315,7 +333,7 @@ cp /usr/bin/qemu-arm-static usr/bin/
 
 LANG=C chroot ${rootfs} /debootstrap/debootstrap --second-stage
 
-mount ${bootp} ${bootfs}
+[ ! "x${DEVELOPMENT_BUILD}" = "xyes" ] && mount ${bootp} ${bootfs}
 
 # Prevent services from starting during installation.
 echo "#!/bin/sh
@@ -369,7 +387,7 @@ echo '  Collecting entropy ...' >> /dev/kmsg
 dd if=/dev/urandom of=/dev/null bs=1024 count=10 2>/dev/null
 
 while entropy=\$(cat /proc/sys/kernel/random/entropy_avail); [ \$entropy -lt 100 ]
-    do sleep 1
+	do sleep 1
 done
 
 rm -f /etc/ssh/ssh_host_*
@@ -503,9 +521,10 @@ apt-get clean
 rm -f /etc/ssl/private/ssl-cert-snakeoil.key
 rm -f /etc/ssl/certs/ssl-cert-snakeoil.pem
 rm -f /var/lib/urandom/random-seed
-rm -f /usr/sbin/policy-rc.d
-rm -f cleanup
 " > cleanup
+[ ! "x${DEVELOPMENT_BUILD}" = "xyes" ] && echo "rm -f /usr/sbin/policy-rc.d" >> cleanup
+echo "rm -f cleanup" >> cleanup
+
 chmod +x cleanup
 
 LANG=C chroot ${rootfs} /cleanup
@@ -529,28 +548,33 @@ for rootpath in /proc/*/root; do
 	fi
 done
 
-umount -l ${bootp}
-
-#umount -l ${rootfs}/usr/src/delivery
 umount -l ${rootfs}/dev/pts
 umount -l ${rootfs}/dev
 umount -l ${rootfs}/sys
 umount -l ${rootfs}/proc
 
-umount -l ${rootfs}
+if [ ! "x${DEVELOPMENT_BUILD}" = "xyes" ]; then
+	umount -l ${bootp}
 
-sync
-sleep 5
+	#umount -l ${rootfs}/usr/src/delivery
 
-if [ "${IMAGE_PATH}" != "" ]; then
-    if [ "x${REDUCE_IMAGE_SIZE}" = "xyes" ]; then
-        reduce_image "${IMAGE_PATH}"
-    fi
+	umount -l ${rootfs}
 
-    kpartx -vds ${IMAGE_PATH}
-	[ "${VERBOSE}" ]		&& echo "Info: Created image ${IMAGE_PATH}."
+	sync
+	sleep 5
+
+	if [ "${IMAGE_PATH}" != "" ]; then
+		if [ "x${REDUCE_IMAGE_SIZE}" = "xyes" ]; then
+			reduce_image "${IMAGE_PATH}"
+		fi
+
+		kpartx -vds ${IMAGE_PATH}
+		[ "${VERBOSE}" ]		&& echo "Info: Created image ${IMAGE_PATH}."
+	else
+		[ "${VERBOSE}" ]		&& echo "Info: Wrote to ${DEVICE}."
+	fi
 else
-	[ "${VERBOSE}" ]		&& echo "Info: Wrote to ${DEVICE}."
+	[ "${VERBOSE}" ]        && echo "Info: Development environment done in ${rootfs}."
 fi
 
 [ "${VERBOSE}" ]		&& echo "Info: Done."
