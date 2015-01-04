@@ -80,8 +80,8 @@ get_apt_source_mirror_url () {
 get_apt_sources_first_stage () {
 
 	echo "
-deb $(get_apt_source_mirror_url) ${_DEB_RELEASE} main contrib non-free rpi
-deb-src $(get_apt_source_mirror_url) ${_DEB_RELEASE} main contrib non-free rpi
+deb $(get_apt_source_mirror_url) ${_DEB_RELEASE} main contrib non-free rpi firmware
+#deb-src $(get_apt_source_mirror_url) ${_DEB_RELEASE} main contrib non-free rpi firmware
 "
 }
 
