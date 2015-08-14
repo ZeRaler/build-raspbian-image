@@ -44,15 +44,14 @@ p
 w
 EOF
 
-    # Shrink image file
-    MAX_USED_SECTOR=$(fdisk -l -u ${IMAGE_PATH} | tail -1 | awk '{ print $3}')
-    SECTOR_SIZE=$(fdisk -l -u ${IMAGE_PATH} | grep Units | sed 's/.* = \([0-9]*\) bytes/\1/')
-    truncate --size=$(( ( ${MAX_USED_SECTOR} + 1 ) * ${SECTOR_SIZE} )) ${IMAGE_PATH}
+    kpartx -us "${DEVICE}"
 
     if [ "x${toDrop}" = "xtrue" ]; then
         kpartx -ds "${IMAGE_PATH}"
-        kpartx -ds "${DEVICE}"
-        losetup -d "${DEVICE}"
     fi
-}
 
+    # Shrink image file
+    MAX_USED_SECTOR=$(fdisk -l -u ${IMAGE_PATH} | grep Linux | awk '{ print $3}')
+    SECTOR_SIZE=$(fdisk -l -u ${IMAGE_PATH} | grep Units | sed 's/.* = \([0-9]*\) bytes/\1/')
+    truncate --size=$(( ( ${MAX_USED_SECTOR} + 1 ) * ${SECTOR_SIZE} )) ${IMAGE_PATH}
+}
