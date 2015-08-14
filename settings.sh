@@ -14,15 +14,14 @@ _DEB_RELEASE="wheezy"				# jessie | wheezy | squeeze
 # Available Debian Mirrors for Installation
 _APT_SOURCE_DEBIAN="ftp://ftp.debian.org/debian"
 _APT_SOURCE_DEBIAN_CDN="http://http.debian.net/debian"
+_APT_SOURCE_RASPBIAN="http://mirrordirector.raspbian.org/raspbian"
 
-_APT_SOURCE_RASPBIAN="http://archive.raspbian.org/raspbian"
+_APT_SOURCE_DEB_MULTIMEDIA="http://www.deb-multimedia.org"
 
-# _APT_SOURCE_DEB_MULTIMEDIA="http://www.deb-multimedia.org"
-
-# _APT_SOURCE_LOCAL="http://localhost:3142/archive.raspbian.org/raspbian" # Require: apt-cacher-ng # FIXME Fix repo path
+_APT_SOURCE_LOCAL="http://localhost:3142/archive.raspbian.org/raspbian" # Require: apt-cacher-ng # FIXME Fix repo path
 ###################
 
-# _DEB_SECTION="main contrib non-free rpi"
+_DEB_SECTION="main contrib non-free rpi firmware"
 
 # _APT_SOURCE_LIST=""
 
@@ -80,21 +79,16 @@ get_apt_source_mirror_url () {
 get_apt_sources_first_stage () {
 
 	echo "
-deb $(get_apt_source_mirror_url) ${_DEB_RELEASE} main contrib non-free rpi firmware
-#deb-src $(get_apt_source_mirror_url) ${_DEB_RELEASE} main contrib non-free rpi firmware
+deb $(get_apt_source_mirror_url) ${_DEB_RELEASE} ${_DEB_SECTION}
+#deb-src $(get_apt_source_mirror_url) ${_DEB_RELEASE} ${_DEB_SECTION}
 "
 }
 
 get_apt_sources_final_stage () {
 
 	echo "
-deb ${_APT_SOURCE} ${_DEB_RELEASE} main contrib non-free rpi
-deb-src ${_APT_SOURCE} ${_DEB_RELEASE} main contrib non-free rpi
-
-deb ${_APT_SOURCE} ${_DEB_RELEASE}-updates main contrib non-free
-
-deb http://security.debian.org/ ${_DEB_RELEASE}/updates main contrib non-free
-deb-src http://security.debian.org/ ${_DEB_RELEASE}/updates main contrib non-free
+deb ${_APT_SOURCE} ${_DEB_RELEASE} ${_DEB_SECTION}
+#deb-src ${_APT_SOURCE} ${_DEB_RELEASE} ${_DEB_SECTION}
 "
 }
 
